@@ -1,23 +1,24 @@
 .isJobReady <- function(jobId) {
-  pollingInterval <- 5
-  nTries <- 20
-  for (i in 1:nTries) {
-    url <- paste0("https://rest.uniprot.org/idmapping/status/", jobId)
-    status <- httr2::request(url) |>
-      httr2::req_perform() |>
-      httr2::resp_body_json()
-    if (any(!is.null(status[["results"]]), !is.null(status[["failedIds"]]))) {
-      message("Job completed!")
-      return(TRUE)
-    }
+  url <- paste0("https://rest.uniprot.org/idmapping/status/", jobId)
+  status <- tryCatch(
+    {
+      httr2::request(url) |>
+        httr2::req_retry(max_tries = 10, max_seconds = 60) |>
+        httr2::req_perform() |>
+        httr2::resp_body_json()
+    },
+    error = \(e) list(messages = "error")
+  )
 
-    if (!is.null(status[["messages"]])) {
-      message(status[["messages"]])
-      return(FALSE)
-    }
-    Sys.sleep(pollingInterval)
+  if (any(!is.null(status[["results"]]), !is.null(status[["failedIds"]]))) {
+    message("Job completed!")
+    return(TRUE)
   }
-  return(FALSE)
+
+  if (!is.null(status[["messages"]])) {
+    message(status[["messages"]])
+    return(FALSE)
+  }
 }
 
 .getResultsURL <- function(redirectURL) {
@@ -47,7 +48,6 @@
 #'   from = "UniProtKB_AC-ID",
 #'   to = "UniRef90"
 #' )
-#'
 uniprot_id_map <- function(...) {
   submission <- httr2::request("https://rest.uniprot.org/idmapping/run") |>
     httr2::req_body_form(...) |>
@@ -66,5 +66,6 @@ uniprot_id_map <- function(...) {
     return(resultsTable)
   }
 
-  stop("Max tries elapsed, error!")
+  warning("Maximum number of tries has been reached!")
+  NULL
 }
