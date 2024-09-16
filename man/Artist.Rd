@@ -7,14 +7,48 @@
 The \code{R6} class \link{Artist}.
 }
 \description{
-The \code{Artist} class provides a collection of methods to create various types of plots using \code{ggplot2}.
-It includes methods for generating dumbbell plots, bubble plots, divergence bar charts, lollipop plots,
-contour plots, scatter plots with ellipses, donut plots, and pie charts. Each method is designed
-to map data to specific aesthetics and apply additional customizations.
+The \code{Artist} class offers a suite of methods designed to create a variety of plots using \code{ggplot2} for
+data exploration. Any methods prefixed with \code{plot_} or \code{test_} will log the command history along with
+their results, allowing you to review all outcomes later via the \code{get_all_results()} method.
+Notably, methods starting with \code{plot_} will check if the result of the preceding command is of the
+\code{htest} class. If so, it will incorporate the previous command and its p-value as the title and subtitle,
+respectively. This class encompasses methods for crafting dumbbell plots, bubble plots, divergence bar charts,
+lollipop plots, contour plots, scatter plots with ellipses, donut plots, and pie charts.
+Each method is tailored to map data to specific visual aesthetics and to apply additional customizations as needed.
+}
+\examples{
+library(data.table)
+air <- subset(airquality, Month \%in\% c(5, 6))
+setDT(air)
+cying <- Artist$new(data = air)
+cying$plot_scatter(x = Wind, y = Temp)
+cying$test_wilcox(
+  formula = Ozone ~ Month,
+)
+cying$plot_scatter(x = Wind, y = Temp)
+cying$plot_scatter(f = \(x) x[, z := Wind * Temp], x = Wind, y = z)
+
+}
+\section{Public fields}{
+\if{html}{\out{<div class="r6-fields">}}
+\describe{
+\item{\code{data}}{Stores the dataset used for plotting.}
+
+\item{\code{command}}{recode the command.}
+
+\item{\code{result}}{record the plot.}
+}
+\if{html}{\out{</div>}}
 }
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
+\item \href{#method-Artist-new}{\code{Artist$new()}}
+\item \href{#method-Artist-get_all_result}{\code{Artist$get_all_result()}}
+\item \href{#method-Artist-test_wilcox}{\code{Artist$test_wilcox()}}
+\item \href{#method-Artist-test_t}{\code{Artist$test_t()}}
+\item \href{#method-Artist-plot_scatter}{\code{Artist$plot_scatter()}}
+\item \href{#method-Artist-plot_box}{\code{Artist$plot_box()}}
 \item \href{#method-Artist-dumbbbell}{\code{Artist$dumbbbell()}}
 \item \href{#method-Artist-bubble}{\code{Artist$bubble()}}
 \item \href{#method-Artist-barchart_divergence}{\code{Artist$barchart_divergence()}}
@@ -27,6 +61,158 @@ to map data to specific aesthetics and apply additional customizations.
 }
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Artist-new"></a>}}
+\if{latex}{\out{\hypertarget{method-Artist-new}{}}}
+\subsection{Method \code{new()}}{
+Initializes the Artist class with an optional dataset.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Artist$new(data = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{data}}{A data frame  containing the dataset to be used for plotting. Default is \code{NULL}.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+An instance of the Artist class.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Artist-get_all_result"></a>}}
+\if{latex}{\out{\hypertarget{method-Artist-get_all_result}{}}}
+\subsection{Method \code{get_all_result()}}{
+Get all history result
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Artist$get_all_result()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+a data.table object
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Artist-test_wilcox"></a>}}
+\if{latex}{\out{\hypertarget{method-Artist-test_wilcox}{}}}
+\subsection{Method \code{test_wilcox()}}{
+Conduct wilcox.test
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Artist$test_wilcox(formula, data = self$data, ...)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{formula}}{\code{\link[=wilcox.test]{wilcox.test()}} formula arguments}
+
+\item{\code{data}}{A data frame containing the data to be plotted. Default is \code{self$data}.}
+
+\item{\code{...}}{Additional aesthetic mappings passed to \code{\link[=wilcox.test]{wilcox.test()}}.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A ggplot2 scatter plot.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Artist-test_t"></a>}}
+\if{latex}{\out{\hypertarget{method-Artist-test_t}{}}}
+\subsection{Method \code{test_t()}}{
+Conduct wilcox.test
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Artist$test_t(formula, data = self$data, ...)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{formula}}{\code{\link[=t.test]{t.test()}} formula arguments}
+
+\item{\code{data}}{A data frame containing the data to be plotted. Default is \code{self$data}.}
+
+\item{\code{...}}{Additional aesthetic mappings passed to \code{\link[=t.test]{t.test()}}.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A ggplot2 scatter plot.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Artist-plot_scatter"></a>}}
+\if{latex}{\out{\hypertarget{method-Artist-plot_scatter}{}}}
+\subsection{Method \code{plot_scatter()}}{
+Creates a scatter plot.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Artist$plot_scatter(
+  data = self$data,
+  fun = function(x) x,
+  x,
+  y,
+  ...,
+  add = private$is_htest()
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{data}}{A data frame containing the data to be plotted. Default is \code{self$data}.}
+
+\item{\code{fun}}{function to process the \code{self$data}.}
+
+\item{\code{x}}{The column name for the x-axis.}
+
+\item{\code{y}}{The column name for the y-axis.}
+
+\item{\code{...}}{Additional aesthetic mappings passed to \code{aes()}.}
+
+\item{\code{add}}{whether to add the test result.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A ggplot2 scatter plot.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Artist-plot_box"></a>}}
+\if{latex}{\out{\hypertarget{method-Artist-plot_box}{}}}
+\subsection{Method \code{plot_box()}}{
+Creates a box plot.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Artist$plot_box(
+  data = self$data,
+  fun = function(x) x,
+  x,
+  ...,
+  add = private$is_htest()
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{data}}{A data frame or tibble containing the data to be plotted. Default is \code{self$data}.}
+
+\item{\code{fun}}{function to process the \code{self$data}.}
+
+\item{\code{x}}{The column name for the x-axis.}
+
+\item{\code{...}}{Additional aesthetic mappings passed to \code{aes()}.}
+
+\item{\code{add}}{whether to add the test result.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A ggplot2 box plot.
+}
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Artist-dumbbbell"></a>}}
 \if{latex}{\out{\hypertarget{method-Artist-dumbbbell}{}}}
 \subsection{Method \code{dumbbbell()}}{
@@ -35,7 +221,7 @@ Create a dumbbell plot
 This method generates a dumbbell plot using the provided data, mapping the specified columns
 to the x-axis, y-axis, and color aesthetic.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Artist$dumbbbell(data, x, y, col, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Artist$dumbbbell(data = self$data, x, y, col, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -66,7 +252,7 @@ Create a bubble plot
 This method generates a bubble plot where points are mapped to the x and y axes, with their
 size and color representing additional variables.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Artist$bubble(data, x, y, size, col, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Artist$bubble(data = self$data, x, y, size, col, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -99,7 +285,7 @@ Create a divergence bar chart
 This method generates a divergence bar chart where bars are colored based on their
 positive or negative value.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Artist$barchart_divergence(data, group, y, fill, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Artist$barchart_divergence(data = self$data, group, y, fill, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -130,7 +316,7 @@ Create a lollipop plot
 This method generates a lollipop plot, where points are connected to a baseline by vertical
 segments, with customizable colors and labels.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Artist$lollipop(data, x, y, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Artist$lollipop(data = self$data, x, y, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -159,7 +345,7 @@ Create a contour plot
 This method generates a contour plot that includes filled and outlined density contours,
 with data points overlaid.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Artist$contour(data, x, y, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Artist$contour(data = self$data, x, y, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -188,7 +374,7 @@ Create a scatter plot with ellipses
 This method generates a scatter plot where data points are colored by group, with ellipses
 representing the confidence intervals for each group.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Artist$scatter_ellipses(data, x, y, col, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Artist$scatter_ellipses(data = self$data, x, y, col, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -219,7 +405,7 @@ Create a donut plot
 This method generates a donut plot, which is a variation of a pie chart with a hole in the center.
 The sections of the donut represent the proportion of categories in the data.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Artist$donut(data, x, y, fill, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Artist$donut(data = self$data, x, y, fill, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
@@ -249,7 +435,7 @@ Create a pie chart
 
 This method generates a pie chart where sections represent the proportion of categories in the data.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{Artist$pie(data, y, fill, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{Artist$pie(data = self$data, y, fill, ...)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{

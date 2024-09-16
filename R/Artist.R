@@ -1,16 +1,116 @@
 #' @title Visualization Artist for Custom Plots
 #'
 #' @description
-#' The `Artist` class provides a collection of methods to create various types of plots using `ggplot2`.
-#' It includes methods for generating dumbbell plots, bubble plots, divergence bar charts, lollipop plots,
-#' contour plots, scatter plots with ellipses, donut plots, and pie charts. Each method is designed
-#' to map data to specific aesthetics and apply additional customizations.
-#'
-#' @import ggplot2 R6
+#' The `Artist` class offers a suite of methods designed to create a variety of plots using `ggplot2` for
+#' data exploration. Any methods prefixed with `plot_` or `test_` will log the command history along with
+#' their results, allowing you to review all outcomes later via the `get_all_results()` method.
+#' Notably, methods starting with `plot_` will check if the result of the preceding command is of the
+#' `htest` class. If so, it will incorporate the previous command and its p-value as the title and subtitle,
+#' respectively. This class encompasses methods for crafting dumbbell plots, bubble plots, divergence bar charts,
+#' lollipop plots, contour plots, scatter plots with ellipses, donut plots, and pie charts.
+#' Each method is tailored to map data to specific visual aesthetics and to apply additional customizations as needed.
+#' @import ggplot2 R6 data.table
 #' @return The `R6` class [Artist].
 #' @export
+#' @examples
+#' library(data.table)
+#' air <- subset(airquality, Month %in% c(5, 6))
+#' setDT(air)
+#' cying <- Artist$new(data = air)
+#' cying$plot_scatter(x = Wind, y = Temp)
+#' cying$test_wilcox(
+#'   formula = Ozone ~ Month,
+#' )
+#' cying$plot_scatter(x = Wind, y = Temp)
+#' cying$plot_scatter(f = \(x) x[, z := Wind * Temp], x = Wind, y = z)
+#'
 Artist <- R6::R6Class("Artist",
   public = list(
+    #' @field data Stores the dataset used for plotting.
+    data = NULL,
+    #' @field command recode the command.
+    command = list(),
+    #' @field result record the plot.
+    result = list(),
+    #' @description
+    #' Initializes the Artist class with an optional dataset.
+    #'
+    #' @param data A data frame  containing the dataset to be used for plotting. Default is `NULL`.
+    #' @return An instance of the Artist class.
+    initialize = function(data = NULL) {
+      message("Welcome to the amazing Artist's world, enjoy exploring your data in a new way!")
+      self$data <- data
+    },
+    #' @description
+    #' Get all history result
+    #'
+    #' @return a data.table object
+    get_all_result = function() {
+      data.table(command = self$command, result = self$result)
+    },
+    #' @description
+    #' Conduct wilcox.test
+    #'
+    #' @param formula [wilcox.test()] formula arguments
+    #' @param data A data frame containing the data to be plotted. Default is `self$data`.
+    #' @param ... Additional aesthetic mappings passed to [wilcox.test()].
+    #' @return A ggplot2 scatter plot.
+    test_wilcox = function(formula, data = self$data, ...) {
+      htestRes <- wilcox.test(formula = formula, data = data, ...)
+
+      eval(private$append_htest)
+      htestRes
+    },
+    #' @description
+    #' Conduct wilcox.test
+    #'
+    #' @param formula [t.test()] formula arguments
+    #' @param data A data frame containing the data to be plotted. Default is `self$data`.
+    #' @param ... Additional aesthetic mappings passed to [t.test()].
+    #' @return A ggplot2 scatter plot.
+    test_t = function(formula, data = self$data, ...) {
+      htestRes <- t.test(formula = formula, data = data, ...)
+
+      eval(private$append_htest)
+      htestRes
+    },
+    #' @description
+    #' Creates a scatter plot.
+    #'
+    #' @param data A data frame containing the data to be plotted. Default is `self$data`.
+    #' @param x The column name for the x-axis.
+    #' @param y The column name for the y-axis.
+    #' @param add whether to add the test result.
+    #' @param fun function to process the `self$data`.
+    #' @param ... Additional aesthetic mappings passed to `aes()`.
+    #' @return A ggplot2 scatter plot.
+    plot_scatter = function(data = self$data, fun = \(x) x, x, y, ..., add = private$is_htest()) {
+      data <- force(fun)(data)
+
+      p <- ggplot(data, aes(x = {{ x }}, y = {{ y }}, ...)) +
+        geom_point()
+
+      eval(private$append_gg)
+      p
+    },
+    #' @description
+    #' Creates a box plot.
+    #'
+    #' @param data A data frame or tibble containing the data to be plotted. Default is `self$data`.
+    #' @param x The column name for the x-axis.
+    #' @param add whether to add the test result.
+    #' @param fun function to process the `self$data`.
+    #' @param ... Additional aesthetic mappings passed to `aes()`.
+    #' @return A ggplot2 box plot.
+    plot_box = function(data = self$data, fun = \(x) x, x, ..., add = private$is_htest()) {
+      data <- force(fun)(data)
+
+      p <- ggplot(data, aes(x = {{ x }}, ...)) +
+        geom_boxplot()
+
+      eval(private$append_gg)
+      p
+    },
     #' @description
     #' Create a dumbbell plot
     #'
@@ -24,7 +124,7 @@ Artist <- R6::R6Class("Artist",
     #' @param ... Additional aesthetic mappings or other arguments passed to `ggplot`.
     #'
     #' @return A ggplot object representing the dumbbell plot.
-    dumbbbell = function(data, x, y, col, ...) {
+    dumbbbell = function(data = self$data, x, y, col, ...) {
       ggplot(data, aes(x = {{ x }}, y = {{ y }}), ...) +
         geom_line() +
         geom_point(aes(col = {{ col }}), size = 3)
@@ -44,7 +144,7 @@ Artist <- R6::R6Class("Artist",
     #' @param ... Additional aesthetic mappings or other arguments passed to `ggplot`.
     #'
     #' @return A ggplot object representing the bubble plot.
-    bubble = function(data, x, y, size, col, ...) {
+    bubble = function(data = self$data, x, y, size, col, ...) {
       ggplot(
         data,
         aes(
@@ -70,7 +170,7 @@ Artist <- R6::R6Class("Artist",
     #' @param ... Additional aesthetic mappings or other arguments passed to `ggplot`.
     #'
     #' @return A ggplot object representing the divergence bar chart.
-    barchart_divergence = function(data, group, y, fill, ...) {
+    barchart_divergence = function(data = self$data, group, y, fill, ...) {
       ggplot(
         data,
         aes(
@@ -117,7 +217,7 @@ Artist <- R6::R6Class("Artist",
     #' @param ... Additional aesthetic mappings or other arguments passed to `ggplot`.
     #'
     #' @return A ggplot object representing the lollipop plot.
-    lollipop = function(data, x, y, ...) {
+    lollipop = function(data = self$data, x, y, ...) {
       ggplot(data, aes(x = {{ x }}, y = {{ y }}, ...)) +
         geom_segment(aes(x = {{ x }}, xend = {{ x }}, y = 0, yend = {{ y }}),
           col = "gray", lwd = 1
@@ -141,7 +241,7 @@ Artist <- R6::R6Class("Artist",
     #' @param ... Additional aesthetic mappings or other arguments passed to `ggplot`.
     #'
     #' @return A ggplot object representing the contour plot.
-    contour = function(data, x, y, ...) {
+    contour = function(data = self$data, x, y, ...) {
       ggplot(data, aes(x = {{ x }}, y = {{ y }}, ...)) +
         geom_point() +
         geom_density_2d_filled(alpha = 0.4) +
@@ -161,7 +261,7 @@ Artist <- R6::R6Class("Artist",
     #' @param ... Additional aesthetic mappings or other arguments passed to `ggplot`.
     #'
     #' @return A ggplot object representing the scatter plot with ellipses.
-    scatter_ellipses = function(data, x, y, col, ...) {
+    scatter_ellipses = function(data = self$data, x, y, col, ...) {
       ggplot(data, aes(
         x = {{ x }},
         y = {{ y }}, col = {{ col }}, ...
@@ -187,7 +287,7 @@ Artist <- R6::R6Class("Artist",
     #' @param ... Additional aesthetic mappings or other arguments passed to `ggplot`.
     #'
     #' @return A ggplot object representing the donut plot.
-    donut = function(data, x, y, fill, ...) {
+    donut = function(data = self$data, x, y, fill, ...) {
       hsize <- 3
       ggplot(data, aes(
         x = {{ x }}, y = {{ y }},
@@ -220,7 +320,7 @@ Artist <- R6::R6Class("Artist",
     #' @param ... Additional aesthetic mappings or other arguments passed to `ggplot`.
     #'
     #' @return A ggplot object representing the pie chart.
-    pie = function(data, y, fill, ...) {
+    pie = function(data = self$data, y, fill, ...) {
       ggplot(
         data,
         aes(
@@ -242,6 +342,31 @@ Artist <- R6::R6Class("Artist",
           legend.position = "none",
           panel.background = element_rect(fill = "white")
         )
+    }
+  ),
+  private = list(
+    append_gg = expression(
+      if (add) p <- p + labs(title = deparse(private$last(self$command))),
+      self$command <- private$add_in_list(self$command, match.call()),
+      self$result <- private$add_in_list(self$result, p)
+    ),
+    append_htest = expression(
+      self$command <- private$add_in_list(self$command, match.call()),
+      self$result <- private$add_in_list(self$result, htestRes)
+    ),
+    last = function(x) {
+      x[[length(x)]]
+    },
+    add_in_list = function(x = list(), element) {
+      x[[length(x) + 1]] <- element
+      x
+    },
+    is_htest = function(x = self$result) {
+      len <- ifelse(
+        length(self$result) == 0L,
+        FALSE,
+        inherits(last(x), "htest")
+      )
     }
   )
 )

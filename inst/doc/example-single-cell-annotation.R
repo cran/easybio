@@ -26,7 +26,7 @@ cl2cell
 #    c(3),
 #    c(0,2, 4, 6)
 #  )
-#  dotplotList <- plotSeuratDot(seuratObject, cls, marker = marker, n = 50, spc = 'Human', topcellN = 2)
+#  dotplotList <- plotSeuratDot(seuratObject, cls, marker = pbmc.markers, n = 50, spc = 'Human', topcellN = 2)
 
 ## -----------------------------------------------------------------------------
 cl2cell <- finsert(
