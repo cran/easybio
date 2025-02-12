@@ -4,7 +4,13 @@
 \alias{matchCellMarker2}
 \title{Match Markers with cellMarker2 Dataset}
 \usage{
-matchCellMarker2(marker, n, spc)
+matchCellMarker2(
+  marker,
+  n,
+  spc,
+  tissueClass = available_tissue_class(spc),
+  tissueType = available_tissue_type(spc)
+)
 }
 \arguments{
 \item{marker}{A data frame of markers obtained from the \code{FindAllMarkers}
@@ -16,6 +22,10 @@ input markers.}
 
 \item{spc}{A character string specifying the species, which can be either
 'Human' or 'Mouse'.}
+
+\item{tissueClass}{A character specifying the tissue classes, default \code{available_tissue_class(spc)}.}
+
+\item{tissueType}{A character specifying the tissue types, default \code{available_tissue_type(spc)}.}
 }
 \value{
 A data frame containing matched markers from the \code{cellMarker2}
@@ -29,10 +39,11 @@ on their average log2 fold change and adjusted p-values.
 }
 \examples{
 # Example usage:
-# Match the top 50 markers from the pbmc.markers dataset with the Human
+# Match the top 50 differential genes from the pbmc.markers dataset with the Human
 # species in the cellMarker2 dataset.
+\dontrun{
 library(easybio)
 data(pbmc.markers)
-matched_markers <- matchCellMarker2(pbmc.markers, n = 50, spc = "Human")
-print(matched_markers)
+matchCellMarker2(pbmc.markers, n = 50, spc = "Human")[]
+}
 }

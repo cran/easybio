@@ -4,7 +4,7 @@
 \alias{groupStat}
 \title{Perform Summary Analysis by Group Using Regular Expressions}
 \usage{
-groupStat(f, x, xname = names(x), patterns)
+groupStat(f, x, xname = colnames(x), patterns)
 }
 \arguments{
 \item{f}{A function that takes a single argument and returns a summary of the data.}
@@ -13,13 +13,17 @@ groupStat(f, x, xname = names(x), patterns)
 
 \item{xname}{A character vector containing the names of the variables in \code{x}.}
 
-\item{patterns}{A character vector of regular expressions that define the groups.}
+\item{patterns}{A list of regular expressions that define the groups.}
 }
 \value{
-A data frame or matrix containing the summary statistics for each group.
+A list containing the summary statistics for each group.
 }
 \description{
 This function applies a specified function to each group defined by a regular expression
 pattern applied to the names of a data object. It is useful for summarizing data when
 groups are defined by a pattern in the names rather than a specific column or index.
+}
+\examples{
+library(easybio)
+groupStat(f = \(x) x + 1, x = mtcars, patterns = list("mp", "t"))
 }

@@ -26,7 +26,7 @@ markerTop50Matched <- matchCellMarker2(marker = pbmc.markers, n = 50, spc = "Hum
 markerTop50Matched
 
 # You can just use the top matched cell as the annotation
-cl2cell <- markerTop50Matched[, head(.SD, 1), by = .(cluster)][[, .(cluster, cell_name)]]
+cl2cell <- markerTop50Matched[, head(.SD, 1), by = .(cluster)][, .(cluster, cell_name)]
 cl2cell <- setNames(cl2cell[["cell_name"]], cl2cell[["cluster"]])
 cl2cell
 
@@ -41,9 +41,9 @@ cls <- list(
 # marker of possible cell for cluster 1, 4, 7
 check_marker(pbmc.markers, 50, spc = "Human", cl = c(1, 5, 7))
 
-# Check these markers' distribution of possible cell
-srtDotPlot <- plotsSeuratDot(srt = pbmc, cls = cls, marker = pbmc.markers, spc = "Human", n = 50)
-srtDotPlot[[1]]
+# Check these markers' expression
+srtDotPlot <- plotSeuratDot(srt = pbmc, cls = cls, marker = pbmc.markers, spc = "Human", n = 50)
+srtDotPlot[[1]] # view other dotPlot `srtDotPlot[2]`, `srtDotPlot[3]`...
 
 # According to the srtDotplot
 cl2cell <- finsert(
@@ -57,6 +57,6 @@ cl2cell <- finsert(
   ),
   len = 9
 )
-
+cl2cell
 pbmc@meta.data[["anno"]] <- cl2cell[as.character(Idents(pbmc))]
 DimPlot(pbmc, reduction = "umap", label = TRUE, group.by = "anno")

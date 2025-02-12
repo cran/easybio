@@ -19,6 +19,10 @@
 dgeList <- function(count, sample.info, feature.info) {
   stopifnot(rownames(count) == rownames(feature.info))
   stopifnot(colnames(count) == rownames(sample.info))
+
+  if (!requireNamespace("edgeR", quietly = TRUE)) {
+    stop("To construct DGEList object, dgeList() requires 'edgeR' package which cannot be found. Please install 'edgeR' using 'BiocManager::install('edgeR')'.")
+  }
   x <- edgeR::DGEList(count, samples = sample.info, genes = feature.info)
 
   x
@@ -79,6 +83,10 @@ dprocess_dgeList <- function(x, group.column, min.count = 10) {
   lcpm <- edgeR::cpm(x, log = TRUE)
   boxplot(lcpm, las = 2)
   title("Normalized data")
+
+  if (requireNamespace("limma", quietly = TRUE)) {
+    stop("To plot MDS plot, 'plotMDS' requires 'limma' package which cannot be found. Please install 'limma' using 'BiocManager::install('limma')'")
+  }
   limma::plotMDS(lcpm,
     label = x$samples[[group.column]],
     col = as.integer((x$samples[[group.column]])), dim = c(1, 2)
@@ -102,11 +110,15 @@ dprocess_dgeList <- function(x, group.column, min.count = 10) {
 #' @return An `eBayes` object containing the fitted linear model and
 #'   results of the differential expression analysis.
 #' @import data.table
-#' @importFrom limma makeContrasts
 #' @export
 limmaFit <- function(x, group.column) {
   oldpar <- par(no.readonly = TRUE)
   on.exit(par(oldpar))
+
+  if (!requireNamespace("limma", quietly = TRUE)) {
+    stop("To fit linear model, 'limmaFit' requires 'limma' package which cannot be found. Please install 'limma' using 'BiocManager::install('limma')'.")
+  }
+  makeContrasts <- limma::makeContrasts()
 
   design <- model.matrix(~ 0 + x$samples[[group.column]])
   colnames(design) <- gsub(".*\\]\\]", "", colnames(design))

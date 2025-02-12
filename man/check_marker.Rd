@@ -4,7 +4,16 @@
 \alias{check_marker}
 \title{Verify Markers for Specific Clusters Using matchCellMarker}
 \usage{
-check_marker(marker, n, spc, cl = c(), topcellN = 2, cis = FALSE)
+check_marker(
+  marker,
+  n,
+  spc,
+  tissueClass = available_tissue_class(spc),
+  tissueType = available_tissue_type(spc),
+  cl = c(),
+  topcellN = 2,
+  cis = FALSE
+)
 }
 \arguments{
 \item{marker}{A data frame of markers obtained from \code{Seurat::FindAllMarkers}.}
@@ -14,6 +23,10 @@ input markers.}
 
 \item{spc}{A character string specifying the species, which can be either
 'Human' or 'Mouse'.}
+
+\item{tissueClass}{A character specifying the tissue classes, default \code{available_tissue_class(spc)}.}
+
+\item{tissueType}{A character specifying the tissue types, default \code{available_tissue_type(spc)}.}
 
 \item{cl}{An integer or vector of integers specifying the clusters to check.}
 
@@ -35,8 +48,9 @@ and to specify whether to consider cis or trans interactions.
 \examples{
 # Example usage:
 # Check the top 50 markers for clusters 1, 4, and 7 in the Human species.
+\dontrun{
 library(easybio)
 data(pbmc.markers)
-verified_markers <- check_marker(pbmc.markers, n = 50, spc = "Human", cl = c(1, 4, 7))
-print(verified_markers)
+check_marker(pbmc.markers, n = 50, spc = "Human", cl = c(1, 4, 7))
+}
 }
