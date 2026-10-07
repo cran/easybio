@@ -2,15 +2,15 @@
 % Please edit documentation in R/sc.R
 \name{get_marker}
 \alias{get_marker}
-\title{Retrieve Markers for Specific Cells from cellMarker2}
+\title{Retrieve Markers for Specific Cells from cellMarker3}
 \usage{
 get_marker(
   spc,
   cell = character(),
-  tissueClass = available_tissue_class(spc),
-  tissueType = available_tissue_type(spc),
+  tissue_class = available_tissue_class(spc),
+  tissue_type = available_tissue_type(spc),
   number = 5,
-  min.count = 1
+  min_count = 1
 )
 }
 \arguments{
@@ -19,14 +19,14 @@ get_marker(
 
 \item{cell}{A character vector of cell types for which to retrieve markers.}
 
-\item{tissueClass}{A character specifying the tissue classes, default \code{available_tissue_class(spc)}.}
+\item{tissue_class}{A character specifying the tissue classes, default \code{available_tissue_class(spc)}.}
 
-\item{tissueType}{A character specifying the tissue types, default \code{available_tissue_type(spc)}.}
+\item{tissue_type}{A character specifying the tissue types, default \code{available_tissue_type(spc)}.}
 
 \item{number}{An integer specifying the number of top markers to return for
 each cell type.}
 
-\item{min.count}{An integer representing the minimum number of times a marker
+\item{min_count}{An integer representing the minimum number of times a marker
 must have been reported to be included in the results.}
 }
 \value{
@@ -35,8 +35,13 @@ element is a vector of marker names.
 }
 \description{
 This function extracts a list of markers for one or more cell types from the
-\code{cellMarker2} dataset. It allows filtering by species, cell type, the number
+\code{cellMarker3} dataset. It allows filtering by species, cell type, the number
 of markers to retrieve, and a minimum count threshold for marker occurrences.
+}
+\details{
+Cell types absent from the database are skipped. For unknown names, up to
+three alternative cell types are suggested via \code{\link{suggest_best_match}},
+covering typos (fuzzy matching) as well as partial names.
 }
 \examples{
 # Example usage:
@@ -47,4 +52,7 @@ markers <- get_marker(spc = "Human", cell = c("Macrophage", "Monocyte"))
 print(markers)
 # Example with a typo in cell name
 markers_typo <- get_marker(spc = "Human", cell = c("Macrophae", "Monocyte"))
+}
+\seealso{
+\code{\link{suggest_best_match}}, \code{\link{match_ref}}
 }

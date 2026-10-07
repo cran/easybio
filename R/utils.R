@@ -8,9 +8,9 @@
 #'
 #' @return A data frame or matrix with the new column names.
 #' @export
-setcolnames <- function(object, nm) {
+set_colnames <- function(object, nm) {
   if (length(nm) != ncol(object)) {
-    stop("Length of 'nm' must equal the number of columns of 'object'")
+    stop("Length of 'nm' must equal the number of columns of 'object'", call. = FALSE)
   }
   colnames(object) <- nm
   object
@@ -26,9 +26,9 @@ setcolnames <- function(object, nm) {
 #'
 #' @return A data frame or matrix with the new row names.
 #' @export
-setrownames <- function(object, nm) {
+set_rownames <- function(object, nm) {
   if (length(nm) != nrow(object)) {
-    stop("Length of 'nm' must equal the number of rows of 'object'")
+    stop("Length of 'nm' must equal the number of rows of 'object'", call. = FALSE)
   }
   rownames(object) <- nm
   object
@@ -49,7 +49,7 @@ setrownames <- function(object, nm) {
 #' @examples
 #' library(easybio)
 #' list2dt(list(a = c(1, 1), b = c(2, 2)))
-list2dt <- function(x, col_names = c("name", "value")) {
+list2dt <- function(x, col_names = c("name", "value")) { # nolint: object_name_linter.
   res <- data.table(name = rep(names(x), sapply(x, length)), value = unlist(x))
   setnames(res, new = col_names)
   res
@@ -78,7 +78,7 @@ split_matrix <- function(matrix, chunk_size, column = TRUE) {
   num_chunks <- length(starts)
   message(sprintf("Matrix was divided into %d chunks", num_chunks))
 
-  lapply(seq_len(num_chunks), function(i) {
+  lapply(seq_len(num_chunks), \(i) {
     s <- starts[i]
     e <- ends[i]
     if (column) matrix[, s:e, drop = FALSE] else matrix[s:e, , drop = FALSE]
@@ -98,7 +98,6 @@ get_attr <- function(x, attr_name) {
   attributes(x)[[attr_name]]
 }
 
-
 #' Convert a Named List into a Graph Based on Overlap
 #'
 #' This function creates a graph from a named list, where the edges are determined
@@ -111,7 +110,7 @@ get_attr <- function(x, attr_name) {
 #' @return A data.table representing the graph, with columns for the node names
 #'   (`node_1` and `node_2`) and the weight of the edge (`interWeight`).
 #' @export
-list2graph <- function(nodes) {
+list2graph <- function(nodes) { # nolint: object_name_linter.
   comb2 <- combn(names(nodes), m = 2, simplify = FALSE)
   inter <- lapply(comb2, \(x) length(intersect(nodes[[x[[1]]]], nodes[[x[[2]]]])))
 
@@ -121,7 +120,6 @@ list2graph <- function(nodes) {
     interWeight = as.integer(inter)
   )
 }
-
 
 #' Perform Summary Analysis by Group Using an column Index
 #'
@@ -137,8 +135,8 @@ list2graph <- function(nodes) {
 #' @export
 #' @examples
 #' library(easybio)
-#' groupStatI(f = \(x) x + 1, x = mtcars, idx = list(c(1, 10), 2))
-groupStatI <- function(f, x, idx) {
+#' group_stat_i(f = \(x) x + 1, x = mtcars, idx = list(c(1, 10), 2))
+group_stat_i <- function(f, x, idx) {
   sapply(idx, \(.x) force(f)(x[.x]), simplify = FALSE)
 }
 
@@ -157,12 +155,11 @@ groupStatI <- function(f, x, idx) {
 #' @export
 #' @examples
 #' library(easybio)
-#' groupStat(f = \(x) x + 1, x = mtcars, patterns = list("mp", "t"))
-groupStat <- function(f, x, xname = colnames(x), patterns) {
+#' group_stat(f = \(x) x + 1, x = mtcars, patterns = list("mp", "t"))
+group_stat <- function(f, x, xname = colnames(x), patterns) {
   idx <- lapply(patterns, \(.x) which(xname %like% .x))
-  groupStatI(f, x, idx)
+  group_stat_i(f, x, idx)
 }
-
 
 #' Set a Directory for Saving Files
 #'
@@ -174,11 +171,11 @@ groupStat <- function(f, x, xname = colnames(x), patterns) {
 #'
 #' @return The path to the newly created or existing directory.
 #' @export
-setSavedir <- function(...) {
+set_savedir <- function(...) {
   savedir <- file.path(...)
   if (!dir.exists(savedir)) dir.create(savedir, recursive = TRUE)
 
-  return(savedir)
+  savedir
 }
 
 #' Perform Operations in a Specified Directory and Return to the Original Directory
@@ -194,7 +191,7 @@ setSavedir <- function(...) {
 #'
 #' @return The result of evaluating the expression within the specified directory.
 #' @export
-workIn <- function(dir, expr) {
+work_in <- function(dir, expr) {
   oldwd <- getwd()
   on.exit(setwd(oldwd))
   if (!dir.exists(dir)) dir.create(dir, recursive = TRUE)
@@ -246,7 +243,6 @@ available_ele <- function(data, col_name, subset) {
   unique(na.omit(values))
 }
 
-
 #' Suggest Best Matches for a String from a Vector of Choices
 #'
 #' This function provides intelligent suggestions for a user's input string by
@@ -257,7 +253,11 @@ available_ele <- function(data, col_name, subset) {
 #' 3.  If no exact match, it uses a combination of fuzzy string matching
 #'     (Levenshtein distance via `adist`) to catch typos and partial/substring
 #'     matching (`grep`) to handle incomplete input.
-#' 4.  Ranks the potential matches and returns the best suggestion(s).
+#' 4.  Ranks the potential matches and returns the best suggestion(s). Substring
+#'     matches are ranked above fuzzy matches, and among themselves choices
+#'     starting with the input come first, followed by the shortest choices.
+#'     Fuzzy matches are ranked by increasing distance. Remaining ties keep the
+#'     order of `choices`.
 #'
 #' @param x A single character string; the user input to find matches for.
 #' @param choices A character vector of available, valid options.
@@ -265,7 +265,7 @@ available_ele <- function(data, col_name, subset) {
 #'   Defaults to 1.
 #' @param threshold An integer; the maximum Levenshtein distance to consider a
 #'   choice a "close" match. A lower value is stricter. Defaults to 2.
-#' @param ignore.case A logical value. If `TRUE`, matching is case-insensitive.
+#' @param ignore_case A logical value. If `TRUE`, matching is case-insensitive.
 #'   Defaults to `TRUE`.
 #' @param return_distance A logical value. If `TRUE`, the output is a data.frame
 #'   containing the suggestions and their calculated distance/score. Defaults to
@@ -275,7 +275,9 @@ available_ele <- function(data, col_name, subset) {
 #' By default (`return_distance = FALSE`), returns a character vector of the
 #' best `n` suggestions. If no suitable match is found, returns `NA`.
 #' If `return_distance = TRUE`, returns a `data.frame` with columns
-#' `suggestion` and `distance`, or `NULL` if no match is found.
+#' `suggestion` and `distance`, or `NULL` if no match is found. The `distance`
+#' column holds the Levenshtein distance of a fuzzy match or the fixed score
+#' `0.5` of a substring match.
 #'
 #' @export
 #'
@@ -301,37 +303,34 @@ available_ele <- function(data, col_name, subset) {
 #'
 #' # 4. Requesting multiple suggestions
 #' suggest_best_match("t", cell_types, n = 3)
-#' #> [1] "T cell" "Neutrophil" "Natural Killer T-cell"
+#' #> [1] "T cell"   "Monocyte" "Neutrophil"
 #'
 #' # 5. No good match found
 #' suggest_best_match("Erythrocyte", cell_types)
 #' #> [1] NA
 #'
 #' # 6. Returning suggestions with their distance score
-#' suggest_best_match("t ce", cell_types, n = 3, return_distance = TRUE)
-#' #>              suggestion distance
-#' #> 1                T cell        1
-#' #> 2        Dendritic cell        2
-#' #> 3 Natural Killer T-cell        2
+#' suggest_best_match("t cel", cell_types, n = 3, return_distance = TRUE)
+#' #>   suggestion distance
+#' #> 1     T cell      0.5
+#' #> 2     B cell      2.0
 suggest_best_match <- function(x,
                                choices,
                                n = 1,
                                threshold = 2,
-                               ignore.case = TRUE,
+                               ignore_case = TRUE,
                                return_distance = FALSE) {
   # --- 1. Input Validation and Normalization ---
-  stopifnot(
-    is.character(x), length(x) == 1,
-    is.character(choices)
-  )
+  assert_string(x)
+  assert_character(choices)
 
   if (length(choices) == 0) {
     return(if (return_distance) NULL else NA_character_)
   }
 
   # Normalize input and choices
-  input_norm <- if (ignore.case) tolower(trimws(x)) else trimws(x)
-  choices_norm <- if (ignore.case) tolower(trimws(choices)) else trimws(choices)
+  input_norm <- if (ignore_case) tolower(trimws(x)) else trimws(x)
+  choices_norm <- if (ignore_case) tolower(trimws(choices)) else trimws(choices)
 
   # --- 2. Exact Match ---
   exact_match_idx <- which(choices_norm == input_norm)
@@ -348,14 +347,27 @@ suggest_best_match <- function(x,
   distances <- adist(input_norm, choices_norm, ignore.case = FALSE)
   fuzzy_idx <- which(distances <= threshold)
 
-  # Partial matching (grep) for substrings
+  # Partial matching (grep) for substrings. Every partial match shares the same
+  # score, so order them by match quality instead: choices starting with the
+  # input first, then the shortest ones, so that "t" suggests "T cell" rather
+  # than whichever long name happens to come first in `choices`
   partial_idx <- grep(input_norm, choices_norm, ignore.case = FALSE)
+  partial_idx <- partial_idx[order(
+    !startsWith(choices_norm[partial_idx], input_norm),
+    abs(nchar(choices_norm[partial_idx]) - nchar(input_norm))
+  )]
 
   # Combine candidates into a data.frame with their scores
   # We give partial matches a low, fixed score (e.g., 0.5) to rank them highly.
+  # `tiebreak` orders candidates sharing a score, `idx` breaks any remaining tie
+  # by keeping the order of `choices`.
   candidates <- rbind(
-    if (length(fuzzy_idx) > 0) data.frame(idx = fuzzy_idx, score = distances[fuzzy_idx]),
-    if (length(partial_idx) > 0) data.frame(idx = partial_idx, score = 0.5)
+    if (length(fuzzy_idx) > 0) {
+      data.frame(idx = fuzzy_idx, score = distances[fuzzy_idx], tiebreak = seq_along(fuzzy_idx))
+    },
+    if (length(partial_idx) > 0) {
+      data.frame(idx = partial_idx, score = 0.5, tiebreak = seq_along(partial_idx))
+    }
   )
 
   if (is.null(candidates) || nrow(candidates) == 0) {
@@ -363,8 +375,9 @@ suggest_best_match <- function(x,
   }
 
   # --- 4. Rank and Select Best Matches ---
-  # Order by score (lower is better), then remove duplicates, keeping the best score
-  candidates <- candidates[order(candidates$score), ]
+  # Order by score (lower is better), then by match quality, and remove
+  # duplicates, keeping the best entry of each choice
+  candidates <- candidates[order(candidates$score, candidates$tiebreak), ]
   best_candidates <- candidates[!duplicated(candidates$idx), ]
 
   # Get the top N results
@@ -385,3 +398,103 @@ suggest_best_match <- function(x,
     choices[top_n$idx]
   }
 }
+
+# --- Deprecated aliases ---
+# nolint start: object_name_linter
+
+#' Rename Column Names (Deprecated)
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `setcolnames()` was renamed to [set_colnames()] to follow the snake_case
+#' naming style. It will be removed in version 1.4.0.
+#'
+#' @param ... Arguments passed on to [set_colnames()].
+#' @return See [set_colnames()].
+#' @export
+setcolnames <- function(...) {
+  lifecycle::deprecate_warn("1.3.0", "setcolnames()", "set_colnames()")
+  set_colnames(...)
+}
+
+#' Rename Row Names (Deprecated)
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `setrownames()` was renamed to [set_rownames()] to follow the snake_case
+#' naming style. It will be removed in version 1.4.0.
+#'
+#' @param ... Arguments passed on to [set_rownames()].
+#' @return See [set_rownames()].
+#' @export
+setrownames <- function(...) {
+  lifecycle::deprecate_warn("1.3.0", "setrownames()", "set_rownames()")
+  set_rownames(...)
+}
+
+#' Summarize Data by Group Using an Index (Deprecated)
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `groupStatI()` was renamed to [group_stat_i()] to follow the snake_case
+#' naming style. It will be removed in version 1.4.0.
+#'
+#' @param ... Arguments passed on to [group_stat_i()].
+#' @return See [group_stat_i()].
+#' @export
+groupStatI <- function(...) {
+  lifecycle::deprecate_warn("1.3.0", "groupStatI()", "group_stat_i()")
+  group_stat_i(...)
+}
+
+#' Summarize Data by Group Using Regular Expressions (Deprecated)
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `groupStat()` was renamed to [group_stat()] to follow the snake_case
+#' naming style. It will be removed in version 1.4.0.
+#'
+#' @param ... Arguments passed on to [group_stat()].
+#' @return See [group_stat()].
+#' @export
+groupStat <- function(...) {
+  lifecycle::deprecate_warn("1.3.0", "groupStat()", "group_stat()")
+  group_stat(...)
+}
+
+#' Set a Directory for Saving Files (Deprecated)
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `setSavedir()` was renamed to [set_savedir()] to follow the snake_case
+#' naming style. It will be removed in version 1.4.0.
+#'
+#' @param ... Arguments passed on to [set_savedir()].
+#' @return See [set_savedir()].
+#' @export
+setSavedir <- function(...) {
+  lifecycle::deprecate_warn("1.3.0", "setSavedir()", "set_savedir()")
+  set_savedir(...)
+}
+
+#' Perform Operations in a Directory (Deprecated)
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' `workIn()` was renamed to [work_in()] to follow the snake_case naming
+#' style. It will be removed in version 1.4.0.
+#'
+#' @param ... Arguments passed on to [work_in()].
+#' @return See [work_in()].
+#' @export
+workIn <- function(...) {
+  lifecycle::deprecate_warn("1.3.0", "workIn()", "work_in()")
+  work_in(...)
+}
+# nolint end

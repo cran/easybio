@@ -1,34 +1,46 @@
-#' @title Download and Process GEO Data
+#' Download and Process GEO Data
 #'
 #' @description
-#' This function downloads gene expression data from the Gene Expression Omnibus (GEO) database.
-#' It retrieves either the expression matrix or the supplementary tabular data if the expression data is not available.
-#' The function also allows for the conversion of probe identifiers to gene symbols and can combine multiple probes into a single symbol.
+#' This function downloads gene expression data from the Gene Expression
+#' Omnibus (GEO) database. It retrieves either the expression matrix or the
+#' supplementary tabular data if the expression data is not available.
+#' The function also allows for the conversion of probe identifiers to gene
+#' symbols and can combine multiple probes into a single symbol.
 #'
 #' @param geo A character string specifying the GEO Series ID (e.g., "GSE12345").
-#' @param dir A character string specifying the directory where files should be downloaded. Default is the current working directory (`"."`).
-#' @param combine A logical value indicating whether to combine multiple probes into a single gene symbol. Default is `TRUE`.
-#' @param method A character string specifying the method to use for combining probes into a single gene symbol. Options are `"max"` (take the maximum value) or `"mean"` (compute the average). Default is `"max"`.
+#' @param dir A character string specifying the directory where files should be
+#'   downloaded. Default is the current working directory (`"."`).
+#' @param combine A logical value indicating whether to combine multiple probes
+#'   into a single gene symbol. Default is `TRUE`.
+#' @param method A character string specifying the method to use for combining
+#'   probes into a single gene symbol. Options are `"max"` (take the maximum
+#'   value) or `"mean"` (compute the average). Default is `"max"`.
 #'
 #' @return A list containing:
-#' \item{data}{A data frame of the expression matrix.}
+#' \item{data}{A data frame of the expression matrix, or `NULL` if not available.}
 #' \item{sample}{A data frame of the sample metadata.}
-#' \item{feature}{A data frame of the feature metadata, which includes gene symbols if combining probes.}
+#' \item{feature}{A data frame of the feature metadata, or `NULL` if not available.}
+#' \item{status}{A character string indicating the data source:
+#'   `"expression_matrix"`, `"supplementary_files"`, or `"no_data"`.}
+#' \item{supplementary}{Only present when `status` is `"supplementary_files"`.
+#'   A named list of `data.table` objects parsed from supplementary files.}
 #'
-#' @importFrom utils download.file
 #' @export
 prepare_geo <- function(geo, dir = ".", combine = TRUE, method = "max") {
-  . <- ID <- symbol <- gene_assignment <- NULL
+  . <- ID <- symbol <- gene_assignment <- NULL # nolint: object_name_linter.
 
   if (!requireNamespace("GEOquery", quietly = TRUE)) {
-    stop("To get GEO datasets, prepare_geo() requires 'GEOquery' package which cannot be found. Please install 'GEOquery' using 'BiocManager::install('GEOquery')'.")
+    stop(
+      "To get GEO datasets, prepare_geo() requires 'GEOquery' package which ",
+      "cannot be found. Please install 'GEOquery' using 'BiocManager::install('GEOquery')'",
+      call. = FALSE
+    )
   }
 
   eset <- GEOquery::getGEO(GEO = geo, destdir = dir, getGPL = FALSE)
-  if (length(eset) > 1) warning("There are more than one geo dataset;only the first one will be extracted")
+  if (length(eset) > 1) warning("There is more than one GEO dataset; only the first one will be extracted")
   exp <- as.data.frame(eset[[1]]@assayData$exprs)
   pd <- eset[[1]]@phenoData@data
-
 
   if (nrow(exp) == 0L) {
     warning("No expression data is retrieved in series matrix; try to check the supplementary file")
@@ -48,37 +60,43 @@ prepare_geo <- function(geo, dir = ".", combine = TRUE, method = "max") {
       },
       silent = TRUE
     )
-    fIdx <- grep(pattern = "(count)|(fpkm)|(tpm)", x = fnames, ignore.case = TRUE)
+    f_idx <- grep(pattern = "(count)|(fpkm)|(tpm)", x = fnames, ignore.case = TRUE)
 
-    if (inherits(fnames, "try-error") || length(fIdx) == 0L) {
-      message(sprintf("No potential expression data is detected in supplementary files"))
+    if (inherits(fnames, "try-error") || length(f_idx) == 0L) {
+      message("No potential expression data is detected in supplementary files")
       message("Check URL manually if in doubt")
       message(url)
 
-      return(eset[[1]]@phenoData@data)
+      return(list(
+        data = NULL, sample = pd, feature = NULL,
+        status = "no_data"
+      ))
     }
 
-    message("detect potential expression data: \n", paste0(fnames[fIdx], "\n"))
-    message("read potential expression data in supplementary files...")
-    res <- lapply(fIdx, \(idx) fread(paste0(url, fnames[[idx]])))
-    names(res) <- make.names(fnames[[fIdx]])
-    res[["sampleInfo"]] <- eset[[1]]@phenoData@data
+    message("Detect potential expression data:\n", paste0(fnames[f_idx], collapse = "\n"))
+    message("Read potential expression data in supplementary files...")
+    res <- lapply(f_idx, \(idx) fread(paste0(url, fnames[[idx]])))
+    names(res) <- make.names(fnames[[f_idx]])
 
-    return(res)
+    return(list(
+      data = NULL, sample = pd, feature = NULL,
+      status = "supplementary_files",
+      supplementary = res
+    ))
   }
 
-  gpl <- GEOquery::getGEO(eset[[1]]@annotation, destdir = ".")
+  gpl <- GEOquery::getGEO(eset[[1]]@annotation, destdir = dir)
   gpl <- GEOquery::Table(gpl)
   setDT(gpl)
   if (!is.character(gpl[["ID"]])) {
-    warning("The gpl annotation data's ID column is not character; Please check the gpl data carefully!")
+    warning("The gpl annotation data's ID column is not character; please check the gpl data carefully")
     gpl[, let(ID = as.character(ID))]
   }
   gpl <- gpl[.(rownames(exp)), on = .(ID)]
 
   if (!combine) {
     gpl <- setDF(gpl, gpl[[1]])
-    return(list(data = exp, sample = pd, feature = gpl))
+    return(list(data = exp, sample = pd, feature = gpl, status = "expression_matrix"))
   }
 
   gpl2 <- copy(gpl)
@@ -90,6 +108,18 @@ prepare_geo <- function(geo, dir = ".", combine = TRUE, method = "max") {
     gpl2[["symbol"]] <- gpl[[which(colnames(gpl) %ilike% "symbol|genename")]]
   }
 
+  # without this the next line fails inside data.table with a message about
+  # ..symbol that says nothing about the annotation being the problem
+  if (!"symbol" %chin% colnames(gpl2)) {
+    stop(
+      "The GPL annotation of ", geo, " has neither a 'gene_assignment' nor a ",
+      "'symbol'/'geneName' column, so its probes cannot be mapped to gene ",
+      "symbols. Use combine = FALSE to get the annotation and the expression ",
+      "matrix as they are",
+      call. = FALSE
+    )
+  }
+
   exp2 <- as.data.table(exp)
   exp2[, symbol := gpl2[, symbol]]
   exp2 <- exp2[symbol != ""]
@@ -98,7 +128,7 @@ prepare_geo <- function(geo, dir = ".", combine = TRUE, method = "max") {
     exp2 <- exp2[, .SD[which.max(rowMeans(.SD, na.rm = TRUE))], by = symbol, .SDcols = is.numeric]
   }
   if (method == "mean") {
-    exp2 <- exp2[, lapply(.SD, function(x) sum(x) / length(x)), by = symbol, .SDcols = is.numeric]
+    exp2 <- exp2[, lapply(.SD, \(x) sum(x) / length(x)), by = symbol, .SDcols = is.numeric]
   }
 
   exp2 <- setDF(exp2, exp2$symbol)
@@ -106,46 +136,122 @@ prepare_geo <- function(geo, dir = ".", combine = TRUE, method = "max") {
   gpl2 <- gpl2[.(rownames(exp2)), on = .(symbol), mult = "first"]
   gpl2 <- setDF(gpl2, gpl2$symbol)
   gpl2$symbol <- NULL
-  return(list(data = exp2, sample = pd, feature = gpl2))
+  list(data = exp2, sample = pd, feature = gpl2, status = "expression_matrix")
 }
 
 #' Prepare TCGA Data for Analysis
 #'
-#' This function prepares TCGA data for downstream analyses such as differential expression analysis with `limma` or survival analysis.
-#' It extracts and processes the necessary information from the TCGA data object, separating tumor and non-tumor samples.
+#' This function prepares TCGA data for downstream analyses such as
+#' differential expression analysis with `limma` or survival analysis.
+#' It extracts and processes the necessary information from the TCGA data
+#' object, separating tumor and non-tumor samples.
+#'
+#' @details
+#' The two expression tables used to be called `exprCount` and `exprFpkm`
+#' while the fields next to them were already `sample_info` and
+#' `features_info`. They are now `expr_count` and `expr_fpkm`; reading or
+#' assigning an old name still works but warns, and will stop working in 1.4.0.
 #'
 #' @param data A `SummarizedExperiment` object containing TCGA data, typically obtained from R package `TCGABiolinks`.
 #'
-#' @return A list.
+#' @return A list of two tables, `all` (every sample) and `tumor` (the tumor
+#'   samples), each holding the expression matrix (`expr_count`, or
+#'   `expr_fpkm` for the tumor samples), the `features_info` and the
+#'   `sample_info`.
 #' @export
 prepare_tcga <- function(data) {
-  sampleInfo <- as.data.frame(data@colData)
-  sampleInfo[["OS"]] <- fcoalesce(sampleInfo[["days_to_death"]], sampleInfo[["days_to_last_follow_up"]])
+  sample_info <- as.data.frame(data@colData)
+  sample_info[["OS"]] <- fcoalesce(sample_info[["days_to_death"]], sample_info[["days_to_last_follow_up"]])
 
-  featuresInfo <- as.data.frame(data@rowRanges)
-  rownames(featuresInfo) <- data@rowRanges@ranges@NAMES
-  expr <- as.data.frame(data@assays@data$unstranded, row.names = rownames(featuresInfo))
-  colnames(expr) <- rownames(sampleInfo)
+  features_info <- as.data.frame(data@rowRanges)
+  rownames(features_info) <- data@rowRanges@ranges@NAMES
+  expr <- as.data.frame(data@assays@data$unstranded, row.names = rownames(features_info))
+  colnames(expr) <- rownames(sample_info)
 
-  # tumor smaple data
-  tumorIdx <- sampleInfo[["sample_type"]] %ilike% "Tumor"
+  # tumor sample data
+  tumor_idx <- sample_info[["sample_type"]] %ilike% "Tumor"
 
-  expr2 <- as.data.frame(data@assays@data$fpkm_unstrand, row.names = rownames(featuresInfo))
-  colnames(expr2) <- rownames(sampleInfo)
-  expr2 <- expr2[, tumorIdx]
+  expr2 <- as.data.frame(data@assays@data$fpkm_unstrand, row.names = rownames(features_info))
+  colnames(expr2) <- rownames(sample_info)
+  expr2 <- expr2[, tumor_idx]
 
-  sampleInfo2 <- sampleInfo[tumorIdx, ]
+  sample_info2 <- sample_info[tumor_idx, ]
 
   structure(list(
-    all = list(
-      exprCount = expr,
-      featuresInfo = featuresInfo,
-      sampleInfo = sampleInfo
+    all = .tcga_table(
+      expr_count = expr,
+      features_info = features_info,
+      sample_info = sample_info
     ),
-    tumor = list(
-      exprFpkm = expr2,
-      featuresInfo = featuresInfo,
-      sampleInfo = sampleInfo2
+    tumor = .tcga_table(
+      expr_fpkm = expr2,
+      features_info = features_info,
+      sample_info = sample_info2
     )
   ))
+}
+
+# --- Deprecated field names ---
+
+# lifecycle deprecates functions, and rejects anything that is not a call of
+# exactly one argument, so a renamed list field needs its own warning. The
+# tables carry a class whose accessors translate the old names; a plain list
+# cannot warn about a name it no longer has, it just returns NULL.
+.tcga_renamed <- c(exprCount = "expr_count", exprFpkm = "expr_fpkm")
+.tcga_renamed_warned <- new.env(parent = emptyenv())
+
+.tcga_field <- function(name) {
+  if (!is.character(name)) {
+    return(name)
+  }
+  new <- .tcga_renamed[name]
+  if (is.na(new)) {
+    return(name)
+  }
+  # once per session: the same field is often read in a loop
+  if (is.null(.tcga_renamed_warned[[name]])) {
+    .tcga_renamed_warned[[name]] <- TRUE
+    warning(
+      "'", name, "' was renamed to '", new, "' in easybio 1.3.0; ",
+      "the old name will stop working in 1.4.0",
+      call. = FALSE
+    )
+  }
+  unname(new)
+}
+
+.tcga_table <- function(...) {
+  structure(list(...), class = c("tcga_table", "list"))
+}
+
+#' @export
+`$.tcga_table` <- function(x, name) {
+  .subset2(x, .tcga_field(name))
+}
+
+#' @export
+`[[.tcga_table` <- function(x, name) {
+  name <- .tcga_field(name)
+  # .subset2() returns NULL for a name that is not there, where [[ on a list
+  # errors; the class should not change that
+  if (is.character(name) && !name %chin% names(x)) {
+    stop("subscript out of bounds", call. = FALSE)
+  }
+  .subset2(x, name)
+}
+
+#' @export
+`$<-.tcga_table` <- function(x, name, value) {
+  `[[<-.tcga_table`(x, name, value)
+}
+
+#' @export
+`[[<-.tcga_table` <- function(x, name, value) {
+  name <- .tcga_field(name)
+  structure(`[[<-`(unclass(x), name, value), class = c("tcga_table", "list"))
+}
+
+#' @export
+print.tcga_table <- function(x, ...) {
+  print(unclass(x), ...)
 }

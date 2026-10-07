@@ -13,12 +13,13 @@ theme_publication(base_size = 12, base_family = "sans")
 }
 \value{
 A ggplot2 theme object that can be applied to ggplot2 plots.
-
-ggplot2 theme.
 }
 \description{
-\code{theme_publication} creates a custom ggplot2 theme designed for academic publications, ensuring clarity, readability, and a professional appearance.
-It is based on \code{theme_classic()} and includes additional refinements to axis lines, text, and other plot elements to meet the standards of high-quality academic figures.
+\code{theme_publication} creates a custom ggplot2 theme designed for academic
+publications, ensuring clarity, readability, and a professional appearance.
+It is based on \code{theme_classic()} and includes additional refinements to
+axis lines, text, and other plot elements to meet the standards of
+high-quality academic figures.
 }
 \examples{
 library(ggplot2)

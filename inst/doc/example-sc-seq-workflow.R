@@ -7,7 +7,14 @@ library(data.table)
 # The pbmc.markers dataset is included in easybio
 head(pbmc.markers)
 
-marker_matched <- matchCellMarker2(marker = pbmc.markers, n = 50, spc = "Human")
+# the organ-level classes, and what one of them actually holds
+length(available_tissue_class("Human"))
+available_tissue_type("Human", tissue_class = "Blood")
+
+marker_matched <- match_ref(
+  marker = pbmc.markers, n = 50, spc = "Human",
+  tissue_class = c("Blood", "Bone marrow")
+)
 
 # Let's look at the top 2 potential cell types for each cluster
 marker_matched[, head(.SD, 2), by = cluster]
@@ -17,13 +24,15 @@ cl2cell_auto <- setNames(cl2cell_auto[["cell_name"]], cl2cell_auto[["cluster"]])
 print("Initial automated annotation:")
 cl2cell_auto
 
-plotPossibleCell(marker_matched[, head(.SD), by = .(cluster)], min.uniqueN = 2)
+plot_possible_cell(marker_matched[, head(.SD), by = .(cluster)], min_unique_n = 2)
+
+plot_possible_cell(marker_matched[, head(.SD), by = .(cluster)], min_unique_n = 2, value = "pct")
 
 # Let's investigate clusters 1, 5, and 7
-local_evidence <- check_marker(marker_matched, cl = c(1, 5, 7), topcellN = 2, cis = TRUE)
+local_evidence <- check_marker(marker_matched, cl = c(1, 5, 7), top_cell_n = 2, cis = TRUE)
 print(local_evidence)
 
-canonical_markers <- check_marker(marker_matched, cl = c(1, 5, 7), topcellN = 2, cis = FALSE)
+canonical_markers <- check_marker(marker_matched, cl = c(1, 5, 7), top_cell_n = 2, cis = FALSE)
 print(canonical_markers)
 
 # For this example to be runnable, we need a Seurat object.
@@ -43,9 +52,9 @@ Idents(srt) <- "seurat_clusters"
 
 
 # Now, let's plot the evidence for clusters 1, 5, and 7
-matchCellMarker2(marker = pbmc.markers, n = 50, spc = "Human") |>
-  check_marker(cl = c(1, 5, 7), topcellN = 2, cis = TRUE) |>
-  plotSeuratDot(srt = srt)
+match_ref(marker = pbmc.markers, n = 50, spc = "Human") |>
+  check_marker(cl = c(1, 5, 7), top_cell_n = 2, cis = TRUE) |>
+  plot_seurat_dot(srt = srt)
 
 # Based on our exploration, we finalize the annotations
 cl2cell_final <- finsert(
@@ -72,7 +81,7 @@ print(custom_ref_list)
 custom_ref_df <- list2dt(custom_ref_list, col_names = c("cell_name", "marker"))
 head(custom_ref_df)
 
-marker_custom <- matchCellMarker2(
+marker_custom <- match_ref(
   marker = pbmc.markers,
   n = 50,
   ref = custom_ref_df
@@ -80,7 +89,7 @@ marker_custom <- matchCellMarker2(
 # Note that the cell_name column now contains our custom cell types
 marker_custom[, head(.SD, 2), by = cluster]
 
-get_marker(spc = "Human", cell = c("Monocyte", "Neutrophil"), number = 5, min.count = 1)
+get_marker(spc = "Human", cell = c("Monocyte", "Neutrophil"), number = 5, min_count = 1)
 
-plotMarkerDistribution(mkr = "CD68")
+plot_marker_distribution(mkr = "CD68")
 
